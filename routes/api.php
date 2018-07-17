@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 
 /** 
@@ -33,7 +34,7 @@ Route::middleware('auth:api')->post('/containers', function(Request $request) {
 
     $result = DB::table('containers')->insert([
         'title' => $title,
-        'data' => $data, 
+        'data' => "[]", 
         'ref' => $ref,
         'user_id' => $uid
     ]);
@@ -71,14 +72,15 @@ Route::middleware('auth:api')->get('/user/containers', function (Request $reques
  */
 Route::get('/containers/{ref}', function (Request $request, $ref) {
 
-    $collection = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
 
-    if($collection == null) {
+    if($container == null) {
         return response()->json([]);
     }
 
-    return response()->json( $collection );
+    return response()->json( $container );
 });
+
 
 /**
  * Update container
@@ -89,3 +91,69 @@ Route::post('/containers/{ref}/update', function (Request $request, $ref) {
     return response()->json([]);
 });
 
+/**
+ * Returns all items in container
+ */
+Route::get('/containers/{ref}/items', function(Request $request, $ref) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json([]);
+    }
+
+    $data = json_decode($container->data, true);
+
+    return response()->json( $data );
+});
+
+/**
+ * Post new item to container
+ */
+Route::post('/containers/{ref}/items', function(Request $request, $ref) {
+
+    $meta = [
+        'created_at' => Carbon::now()->toDateTimeString(),
+    ];
+
+    if($request->user()) {
+        $meta['uid'] = $request->user()->id;
+    }
+
+    // get actual data and combine it with meta
+
+    // update data
+
+});
+
+/**
+ * Return item in container by ID
+ */
+Route::get('/containers/{ref}/items/{id}', function (Request $request, $ref, $id) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json([]);
+    }
+
+    $data = json_decode($container->data, true);
+
+    return response()->json( $data[$id] );
+});
+
+/**
+ * Delete container
+ */
+Route::middleware('auth:api')->delete('/containers/{ref}', function(Request $request, $ref) {
+
+    $container = DB::table('containers')->where('ref', $ref)->get();
+
+    // check if container belongs to user
+    if($container[0]->user_id == $request->user()->id) 
+    {
+        DB::table('containers')->where('ref', $ref)->delete();
+
+        return ['success' => true, 'message' => 'Container removed!'];
+    }
+
+    return ['success' => false, 'message' => 'You are not authoarized to remove that container!'];
+});
