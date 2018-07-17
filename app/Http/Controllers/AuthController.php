@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -51,6 +52,42 @@ class AuthController extends Controller
             'message' => 'Could not sign in!',
             'user' => null, 
             'token' => null
+        ];
+    }
+
+    /**
+     * Store new user, returns user info and token to sign in
+     */
+    public function signUp(Request $request) 
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'min:3|email|required|unique:users',
+            'name' => 'min:3',
+            'password' => 'min:3'
+        ]);
+
+        if($validator->fails()) {
+            return [
+                'success' => false,
+                'message' => 'Invalid inputs',
+                'failed' => $validator->failed()
+            ];
+        }
+
+        $user = User::create([
+            'email' => $request->input('email'),
+            'name' => $request->input('name', 'User'),
+            'password' => Hash::make($request->input('password'))
+        ]);
+
+        // create access token
+        $token = User::find($user->id)->createToken('Shiplet')->accessToken;
+
+        return [
+            'user' => $user, 
+            'token' => $token,
+            'message' => 'Your account has been created!',
+            'success' => true
         ];
     }
 

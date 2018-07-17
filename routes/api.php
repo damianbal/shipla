@@ -17,14 +17,19 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 Route::post('/sign-in', 'AuthController@signIn');
 
 /**
- * Post new collection
+ * Create user
  */
-Route::post('/containers', function(Request $request) {
+Route::post('/sign-up', 'AuthController@signUp');
+
+/**
+ * Post new container
+ */
+Route::middleware('auth:api')->post('/containers', function(Request $request) {
 
     $title = $request->input('title');
     $data  = $request->input('data');
     $ref = md5(microtime());
-    $uid = 1; // for test
+    $uid = $request->user()->id;
 
     $result = DB::table('containers')->insert([
         'title' => $title,
@@ -41,17 +46,28 @@ Route::post('/containers', function(Request $request) {
 });
 
 /**
- * Returns all collections
+ * Returns all containers
  */
+/*
 Route::get('/containers', function (Request $request) {
 
-    $collections = DB::select("SELECT * FROM containers");
+    $containers= DB::select("SELECT * FROM containers");
 
-    return response()->json($collections);
+    return response()->json($containers);
+});
+*/
+
+/**
+ * Return users containers
+ */
+Route::middleware('auth:api')->get('/user/containers', function (Request $request) {
+    $containers = DB::table('containers')->where('user_id', $request->user()->id)->get();
+
+    return response()->json($containers);
 });
 
 /**
- * Return one collection by reference
+ * Return one container by reference
  */
 Route::get('/containers/{ref}', function (Request $request, $ref) {
 
