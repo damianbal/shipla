@@ -4,6 +4,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
+/**
+ * TODO: 
+ * -> seperate logic to controllers
+ * -> 
+ */
 
 /** 
  * Return user which is signed in with token
@@ -115,14 +120,41 @@ Route::post('/containers/{ref}/items', function(Request $request, $ref) {
         'created_at' => Carbon::now()->toDateTimeString(),
     ];
 
-    if($request->user()) {
-        $meta['uid'] = $request->user()->id;
+    // if user is signed in store uid
+    if(auth('api')->user())
+    {
+        $meta['uid'] = auth('api')->user()->id;
     }
 
-    // get actual data and combine it with meta
+    // get containers and items in that container
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+    $items = json_decode($container->data, true);
+
+    if($container->requires_auth && !auth('api')->user()) 
+    {
+        return ['success' => false, 'message' => 'You are not authoarized!'];
+    }
+
+    // get new data
+    $data = $request->input('data');
+
+    // add meta information
+    $data['meta'] = $meta;
 
     // update data
+    $items[] = $data;
 
+    // convert back to string and update it 
+    $items_str = json_encode($items);
+
+    DB::table('containers')->where('ref', $ref)->update([
+        'data' => $items_str
+    ]);
+
+    return [
+        'success' => true, 
+        'message' => 'Item added to container',
+    ];
 });
 
 /**
