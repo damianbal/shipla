@@ -173,6 +173,43 @@ Route::get('/containers/{ref}/items/{id}', function (Request $request, $ref, $id
 });
 
 /**
+ * Set new item in container by ID
+ */
+Route::post('/containers/{ref}/items/{id}', function (Request $request, $ref, $id) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json(['success' => false, 'message' => 'Container does not exist!']);
+    }
+
+    // get the new data
+    $data = $request->input('data');
+
+    // get all the items in json as array
+    $items = json_decode($container->data, true);
+
+    // store the meta info
+    $meta = $items[$id]["meta"];
+
+    // set new data 
+    $items[$id] = $data;
+
+    // set meta info back to item
+    $items[$id]["meta"] = $meta;
+
+    // convert back to string
+    $items_str = json_encode($items);
+
+    // update 
+    DB::table('containers')->where('ref', $ref)->update([
+        'data' => $items_str
+    ]);
+
+    // return
+    return response()->json( [ 'success' => true ] );
+});
+
+/**
  * Delete container
  */
 Route::middleware('auth:api')->delete('/containers/{ref}', function(Request $request, $ref) {
