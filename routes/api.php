@@ -112,6 +112,45 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
 });
 
 /**
+ * Update fields in item
+ */
+Route::patch('/containers/{ref}/items/{id}', function(Request $request, $ref) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json(['success' => false, 'message' => 'Container does not exist!']);
+    }
+
+    // get the new data
+    $data = $request->input('data');
+
+    // get all the items in json as array
+    $items = json_decode($container->data, true);
+
+    // store the meta info
+    $meta = $items[$id]["meta"];
+
+    // update the fields
+    foreach ($data as $key => $value) {
+        $items[$id][$key] = $value;
+    }
+
+    // set meta info back to item, this won't let change it by client-side
+    $items[$id]["meta"] = $meta;
+
+    // convert back to string
+    $items_str = json_encode($items);
+
+    // update 
+    DB::table('containers')->where('ref', $ref)->update([
+        'data' => $items_str
+    ]);
+
+    // return
+    return response()->json( [ 'success' => true ] );
+});
+
+/**
  * Post new item to container
  */
 Route::post('/containers/{ref}/items', function(Request $request, $ref) {

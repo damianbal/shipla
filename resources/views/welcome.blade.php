@@ -5,7 +5,7 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title>Laravel</title>
+        <title>Shipla</title>
 
         <!-- Fonts -->
         <link href="https://fonts.googleapis.com/css?family=Raleway:100,600" rel="stylesheet" type="text/css">
@@ -79,12 +79,18 @@
 
             <div class="content">
                 <div class="title m-b-md">
-                    Shiplet
+                    Shipla
                 </div>
 
+                <div class="text-muted">
+                    There is really nothing here for you
+                </div>
+
+<!--
                 <div class="links">
                     <a href="#">Dashboard</a>
                 </div>
+        -->
             </div>
         </div>
     </body>
