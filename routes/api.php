@@ -108,13 +108,60 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
 
     $data = json_decode($container->data, true);
 
+    $options = $request->input('options');
+
+    // sort if order_field is provided
+    if(isset($options['order_field'])) {
+        
+        // if order_field is set to sort by created at then we need to prepend 'meta'
+        if($options['order_field'] == 'created_at') {
+            usort($data, function ($a, $b) use($options) {
+                return $a['meta']['created_at'] - $b['meta']['created_at'];
+            });
+        }
+        // sort by provided field
+        else {
+            usort($data, function ($a, $b) use($options) {
+                return $a[$options['order_field']] - $b[$options['order_field']];
+            });
+        }
+
+
+        // reverse the order
+        if($options['order_direction'] == 'DESC') {
+            $data = array_reverse($data);
+        }
+
+        // check if page_index option is set
+        if(isset($options['page_index'])) {
+            // get items for that page 
+            $page_items = [];
+
+            $page_index = $options['page_index'];
+
+            $per_page = $container->items_per_page;
+
+            for($i = $page_index * $per_page; $i < ($page_index * $per_page) + $per_page; $i++) {
+                if(isset($data[$i])) {
+                    $page_items[] = $data[$i];
+                }
+            }
+
+            // return data
+            return response()->json($page_items);
+        }
+
+        return response()->json($data);
+    }
+
+    // return all items without ordering them
     return response()->json( $data );
 });
 
 /**
  * Update fields in item
  */
-Route::patch('/containers/{ref}/items/{id}', function(Request $request, $ref) {
+Route::middleware('auth:api')->patch('/containers/{ref}/items/{id}', function(Request $request, $ref, $id) {
     $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
 
     if($container == null) {
@@ -141,7 +188,15 @@ Route::patch('/containers/{ref}/items/{id}', function(Request $request, $ref) {
     // convert back to string
     $items_str = json_encode($items);
 
-    // update 
+    // update (only if it is our item or we are owners of that container)
+    $uid = $items[$id]["meta"]["uid"];
+
+    // if item is not users or signed in user is not container owner then respond with failure
+    if($uid != $request->user()->id || $request->user()->id != $container->user_id) {
+        return response()->json(['success' => false, 'message' => 'Unathoarized!']);
+    }
+
+    // if everything is ok then update that item
     DB::table('containers')->where('ref', $ref)->update([
         'data' => $items_str
     ]);
@@ -157,6 +212,7 @@ Route::post('/containers/{ref}/items', function(Request $request, $ref) {
 
     $meta = [
         'created_at' => Carbon::now()->toDateTimeString(),
+        'ref' => md5(microtime())
     ];
 
     // if user is signed in store uid
@@ -169,6 +225,8 @@ Route::post('/containers/{ref}/items', function(Request $request, $ref) {
     $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
     $items = json_decode($container->data, true);
 
+    // if we are required to be signed in to add data to that container and we are not then return not 
+    // authoraized response
     if($container->requires_auth && !auth('api')->user()) 
     {
         return ['success' => false, 'message' => 'You are not authoarized!'];
@@ -208,13 +266,14 @@ Route::get('/containers/{ref}/items/{id}', function (Request $request, $ref, $id
 
     $data = json_decode($container->data, true);
 
+
     return response()->json( $data[$id] );
 });
 
 /**
  * Set new item in container by ID
  */
-Route::post('/containers/{ref}/items/{id}', function (Request $request, $ref, $id) {
+Route::middleware('auth:api')->post('/containers/{ref}/items/{id}', function (Request $request, $ref, $id) {
     $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
 
     if($container == null) {
@@ -238,6 +297,12 @@ Route::post('/containers/{ref}/items/{id}', function (Request $request, $ref, $i
 
     // convert back to string
     $items_str = json_encode($items);
+
+    $uid = $items[$id]["meta"]["uid"];
+
+    if($uid != $request->user()->id || $request->user()->id != $container->user_id) {
+        return response()->json(['success' => false, 'message' => 'Unathoarized!']);
+    }
 
     // update 
     DB::table('containers')->where('ref', $ref)->update([

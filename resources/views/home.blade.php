@@ -83,7 +83,7 @@
                 </div>
 
                 <div class="text-muted">
-                    There is really nothing here for you
+                    
                 </div>
 
 <!--
