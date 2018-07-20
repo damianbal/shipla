@@ -52,18 +52,6 @@ Route::middleware('auth:api')->post('/containers', function(Request $request) {
 });
 
 /**
- * Returns all containers
- */
-/*
-Route::get('/containers', function (Request $request) {
-
-    $containers= DB::select("SELECT * FROM containers");
-
-    return response()->json($containers);
-});
-*/
-
-/**
  * Return users containers
  */
 Route::middleware('auth:api')->get('/user/containers', function (Request $request) {
@@ -90,10 +78,21 @@ Route::get('/containers/{ref}', function (Request $request, $ref) {
 /**
  * Update container
  */
-Route::post('/containers/{ref}/update', function (Request $request, $ref) {
+Route::middleware('auth:api')->post('/containers/{ref}/update', function (Request $request, $ref) {
+
+    $container = DB::table('containers')->where('ref', '=', $ref)->get()[0];
+
+    if($container == null) {
+        return ['success' => false, 'message' => 'Container not found!'];
+    }
+
+    if($container->user_id != $request->user()->id) {
+        return ['success' => false, 'message' => 'You are not authoarized!'];
+    }
+    
     DB::table('containers')->where('ref', '=', $ref)->update($request->all());
 
-    return response()->json([]);
+    return response()->json(['success' => true, 'message' => 'Container updated!']);
 });
 
 /**
@@ -108,7 +107,35 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
 
     $data = json_decode($container->data, true);
 
+
+
     $options = $request->input('options');
+
+    if(isset($options['where_field']))
+    {
+        $where_comp = $options['where_comp'];
+        $value = $options['where_value'];
+
+        $data = array_filter($data, function($item) use($where_comp, $options, $value) {
+            if($where_comp == '>') {
+                return $item[$options['where_field']] > $value;
+            }
+            else if($where_comp == '<') {
+                return $item[$options['where_field']] < $value;
+            }
+            else if($where_comp == '>=') {
+                return $item[$options['where_field']] >= $value;
+            }
+            else if($where_comp == '<=') {
+                return $item[$options['where_field']] <= $value;
+            }
+            else if($where_comp == '==') {
+                return $item[$options['where_field']] == $value;
+            }
+
+            return false;
+        });
+    }
 
     // sort if order_field is provided
     if(isset($options['order_field'])) {
