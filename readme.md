@@ -9,6 +9,9 @@ You can also use Shipla which is hosted on heroku: https://shipla.herokuapp.com/
 
 ```sh
 composer install
+php artisan migrate:install
+php artisan migrate
+php artisan passport:install
 php artisan serve
 ```
 
