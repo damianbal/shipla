@@ -90,96 +90,54 @@ Route::middleware('auth:api')->post('/containers/{ref}/update', function (Reques
 });
 
 /**
- * Returns all items in container
+ * Return all items
+ * Query params:
+ *  -> sort_by (field to be sorted by), default is created_at
+ *  -> sort (sorting order), default id desc
+ * -> page (index og page), if not passed all the results are retunred
  */
 Route::get('/containers/{ref}/items', function(Request $request, $ref) {
     $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
 
     if($container == null) {
-        return response()->json([]);
+        return ['success' => false, 'message' => 'Container does not exist!'];
     }
 
+    // decode data from json string to array
     $data = json_decode($container->data, true);
 
+    $sort_by = $request->input('sort_by', 'created_at'); 
+    $sort   = $request->input('sort', 'DESC');
 
+    // sort
+    usort($data, function($a, $b) use ($sort_by, $sort) {
+        // if it is created_at then we need to handle it bit different
+        if($sort_by == 'created_at') 
+        {
+            return strtotime($a['meta']['created_at']) - strtotime($b['meta']['created_at']);
+        } 
+        // if it is a string compare lengths
+        else if(!is_numeric($a[$sort_by]))
+        {
+            return strcmp($a[$sort_by], $b[$sort_by]);
+        }
+        else 
+        {
+            return $a[$sort_by] - $b[$sort_by];
+        }
+    });
 
-    $options = $request->input('options');
-
-    if(isset($options['where_field']))
-    {
-        $where_comp = $options['where_comp'];
-        $value = $options['where_value'];
-
-        $data = array_filter($data, function($item) use($where_comp, $options, $value) {
-            if($where_comp == '>') {
-                return $item[$options['where_field']] > $value;
-            }
-            else if($where_comp == '<') {
-                return $item[$options['where_field']] < $value;
-            }
-            else if($where_comp == '>=') {
-                return $item[$options['where_field']] >= $value;
-            }
-            else if($where_comp == '<=') {
-                return $item[$options['where_field']] <= $value;
-            }
-            else if($where_comp == '==') {
-                return $item[$options['where_field']] == $value;
-            }
-
-            return false;
-        });
+    // reverse?
+    if($sort == 'DESC') {
+        $data = array_reverse($data);
     }
 
-    // sort if order_field is provided
-    if(isset($options['order_field'])) {
-        
-        // if order_field is set to sort by created at then we need to prepend 'meta'
-        if($options['order_field'] == 'created_at') {
-            usort($data, function ($a, $b) use($options) {
-                return strtotime($a['meta']['created_at']) - strtotime($b['meta']['created_at']);
-            });
-        }
-        // sort by provided field
-        else {
-            usort($data, function ($a, $b) use($options) {
-                return $a[$options['order_field']] - $b[$options['order_field']];
-            });
-        }
+    // pagination
+    if($request->has('page')) {
+        $page_items = [];
+        $page_index = $request->input('page', 0);
 
-
-        // reverse the order
-        if($options['order_direction'] == 'DESC') {
-            $data = array_reverse($data);
-        }
-
-        // check if page_index option is set
-        if(isset($options['page_index'])) {
-            // get items for that page 
-            $page_items = [];
-
-            $page_index = $options['page_index'];
-
-            $per_page = $container->items_per_page;
-
-            for($i = $page_index * $per_page; $i < ($page_index * $per_page) + $per_page; $i++) {
-                if(isset($data[$i])) {
-                    $page_items[] = $data[$i];
-                }
-            }
-
-            // return data
-            return response()->json($page_items);
-        }
-
-        return response()->json($data);
-    }
-
-
-    $page_items = [];
-    if(isset($options['page_index'])) {
-
-        $page_index = $options['page_index'];
+        $page_items = [];
 
         $per_page = $container->items_per_page;
 
@@ -188,14 +146,13 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
                 $page_items[] = $data[$i];
             }
         }
+
+        // return items for page
+        return response()->json($page_items);
     }
 
-    if(count($page_items) > 0) {
-        $data = $page_items;
-    }
-
-    // return all items without ordering them
-    return response()->json( $data );
+    // return sorted data
+    return $data; 
 });
 
 /**
@@ -415,3 +372,4 @@ Route::middleware('auth:api')->delete('/containers/{ref}/items/{id}', function(R
 
     return ['success' => true, 'message' => 'Item removed!'];
 });
+
