@@ -27,7 +27,7 @@ Route::post('/sign-in', 'AuthController@signIn');
  */
 Route::post('/sign-up', 'AuthController@signUp');
 
-/**
+/** 
  * Post new container
  */
 Route::middleware('auth:api')->post('/containers', function(Request $request) {
@@ -356,4 +356,49 @@ Route::middleware('auth:api')->delete('/containers/{ref}', function(Request $req
     }
 
     return ['success' => false, 'message' => 'You are not authoarized to remove that container!'];
+});
+
+/**
+ * Delete item
+ */
+Route::middleware('auth:api')->delete('/containers/{ref}/items/{id}', function(Request $request, $ref, $id) {
+
+    $container = DB::table('containers')->where('ref', $ref)->get()[0];
+
+    if($container == null) {
+        return ['success' => false, 'message' => 'Container doesnt exist!'];
+    }
+
+    $items = json_decode($container->data, true);
+
+    $item = $items[$id];
+
+    // if item doesnt have meta.uid then only container owner can remove it
+    if(!isset($item['meta']['uid'])) {
+        if($request->user()->id != $container->user_id) {
+            return [
+                'success' => false, 
+                'message' => 'You are not authoarized!'
+            ];
+        }
+    }
+    else {
+        if($request->user()->id != $container->user_id || $item['meta']['uid'] != $request->user()->id) {
+            return [
+                'success' => false, 
+                'message' => 'You are not authoarized!'
+            ];
+        }
+    }
+
+    // removes item directly on $items
+    array_splice($items, $id, 1);
+
+    $items_str = json_encode($items);
+
+    DB::table('containers')->where('ref', $ref)->update([
+        'data' => $items_str
+    ]);
+
+    return ['success' => true, 'message' => 'Item removed!'];
 });
