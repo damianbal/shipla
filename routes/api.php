@@ -4,12 +4,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 
-/**
- * TODO: 
- * -> seperate logic to controllers
- * -> 
- */
-
 /** 
  * Return user which is signed in with token
  */
@@ -143,7 +137,7 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
         // if order_field is set to sort by created at then we need to prepend 'meta'
         if($options['order_field'] == 'created_at') {
             usort($data, function ($a, $b) use($options) {
-                return $a['meta']['created_at'] - $b['meta']['created_at'];
+                return strtotime($a['meta']['created_at']) - strtotime($b['meta']['created_at']);
             });
         }
         // sort by provided field
@@ -179,6 +173,25 @@ Route::get('/containers/{ref}/items', function(Request $request, $ref) {
         }
 
         return response()->json($data);
+    }
+
+
+    $page_items = [];
+    if(isset($options['page_index'])) {
+
+        $page_index = $options['page_index'];
+
+        $per_page = $container->items_per_page;
+
+        for($i = $page_index * $per_page; $i < ($page_index * $per_page) + $per_page; $i++) {
+            if(isset($data[$i])) {
+                $page_items[] = $data[$i];
+            }
+        }
+    }
+
+    if(count($page_items) > 0) {
+        $data = $page_items;
     }
 
     // return all items without ordering them
