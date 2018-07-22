@@ -68,6 +68,27 @@ Route::get('/containers/{ref}', function (Request $request, $ref) {
     return response()->json( $container );
 });
 
+/**
+ * Return info about container, now only returns number of pages, and number of items in container.
+ */
+Route::get('/containers/{ref}/info', function (Request $request, $ref) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json([]);
+    }
+
+    $items = json_decode($container->data, true);
+
+    $items_count = count($items);
+
+    $pages = $items_count / $container->items_per_page;
+
+    return response()->json( [
+        'items' => $items_count,
+        'pages' => $pages
+    ] );
+}); 
 
 /**
  * Update container
@@ -252,7 +273,32 @@ Route::post('/containers/{ref}/items', function(Request $request, $ref) {
 });
 
 /**
+ * Return item in container by meta reference
+ */
+Route::get('/containers/{ref}/items/ref/{item_ref}', function(Request $request, $ref, $item_ref) {
+    $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);
+
+    if($container == null) {
+        return response()->json(['message' => 'Container does not exist!', 'success' => false]);
+    }
+
+    $data = json_decode($container->data, true);
+
+    $item = null; 
+
+    foreach($data as $d) {
+        if($d['meta']['ref'] == $item_ref) {
+            $item = $d;
+            break;
+        }
+    }
+
+    return response()->json($item);
+});
+
+/**
  * Return item in container by ID
+ * AVOID USING IT!
  */
 Route::get('/containers/{ref}/items/{id}', function (Request $request, $ref, $id) {
     $container = DB::selectOne("SELECT * FROM containers WHERE ref = ?", [$ref]);

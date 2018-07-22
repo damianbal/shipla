@@ -1,7 +1,7 @@
 # Shipla
 > Create your API in no time!
 
-Simple RESTful API platform which leys you create API just in seconds, note that it is limited, and should be only used for simple sites, where data is not that important, also it can be used by front-end developers which don't want to write their own API, or to test front-end, whatever you want just not something where data is important, Have fun!
+Simple RESTful API platform which lets you create API just in seconds, note that it is limited, and should be only used for simple sites, where data is not that important, also it can be used by front-end developers which don't want to write their own API, or to test front-end, whatever you want just not something where data is important, Have fun!
 
 You can also use Shipla which is hosted on heroku: https://shipla.herokuapp.com/
 
